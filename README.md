@@ -18,7 +18,49 @@ Follow here:
     * Ability to download latest MPCORB JSON datafile.
     * Ability to update database from JSON file.
     * Ability to search for object in database via passed query.
-
+    
+2. Prerequisites
+    
+    In most cases, `python` is already installed on Linux machines.
+    
+    Also, we assume that `streampc` repo is already cloned or downloaded.
+    
+    You can download it from 
+    https://github.com/semolex/streampc/archive/master.zip
+    
+    It is created on top of `python 3.5`, but while there is not test, you can try to use any viable version.  
+    
+    If there is a problems, please follow:   
+    https://wiki.python.org/moin/BeginnersGuide/Download    
+    https://help.github.com/articles/cloning-a-repository/
+    
+3. Installation
+    
+    3.1 Install required software 
+    
+    ```sudo apt-get install mongodb python-virtualenv```
+    
+    3.2 Setup environment
+    
+    ```
+    # start MongoDB service
+    sudo service mongod start
+    ```
+    Setup virtualenv in preferred folder:
+    ```
+    virtualenv envname -p python3 --no-site-packages
+    ```
+    Activate environment:
+    ```
+    source envname/bin/activate
+    ```
+    Now is time to install few requirements.
+    `cd` into *streampc* folder
+    ```
+    # cd into streampc directory and run
+    pip install -r requirements.txt
+    ```
+    
 ##### TODO: 
  * Documentation is on the road
  * Add validators
