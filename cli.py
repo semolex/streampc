@@ -1,0 +1,135 @@
+"""Set of command line utils to manipulate and search MPCORB file data"""
+
+import gzip
+import logging
+import os
+import pprint
+import urllib.request
+
+import argh
+from bson import json_util
+
+from engine import Engine
+from utils import convert, parse_query
+from config import MPC_URL, MPC_FILENAME, \
+     DEFAULT_DBNAME, DEFAULT_COLLECTION
+
+logging.basicConfig(level=logging.INFO,
+                    format='[%(levelname)s] %(name)s: %(message)s')
+logger = logging.getLogger()
+
+engine = Engine()
+
+
+@argh.arg('-p', nargs='+')
+@argh.arg('-db', default=DEFAULT_DBNAME)
+@argh.arg('-col', default=DEFAULT_COLLECTION)
+@argh.arg('--pretty')
+def find(pretty=False, **kwargs):
+    """
+    Function that searches for an objects inside DB.
+    Using parsed query, prepared from command line params.
+    Calls to `Engine` class to search for required data.
+    Query is parsed and values are converted into proper types.
+    CLI args:
+        -p: determines that values will be recognized as query params.
+            Uses following param convention: {key}:{value} for proper use.
+        -db: DB name for search
+        -col: collection name for search
+
+    Example:
+        `$ python cli.py find -p Aphelion_dist:3.1948214 Num_opps:38 --pretty`
+        `$ python cli.py find -p Num_opps:38 -db backup_mpc -col mpc_data_2`
+
+    :param pretty: if True, result will be "pretty-formatted".
+    :param kwargs: keyword arguments from CLI.
+    :return: search result
+    """
+    db_name = kwargs.get('db')
+    col = kwargs.get('col')
+    query = parse_query(kwargs['p'])
+    query = convert(query)
+    result = engine.find(query, db_name, col)
+
+    if pretty:
+        return pprint.pformat(result)
+    else:
+        return result
+
+
+@argh.arg('-url', default=MPC_URL)
+@argh.arg('-path', default=os.curdir)
+@argh.arg('-name', default=MPC_FILENAME)
+@argh.arg('--extract')
+def get(extract=False, **kwargs):
+    """
+    Function for downloading MPC data files.
+    Has ability to decompress expected .gz files.
+    Used values from `config` as defaults.
+    CLI args:
+        -url: URI for file download
+        -path: path to folder for download
+        -name: name for the downloaded file
+    Downloaded file will be saved under `{path}/{filename}`
+    Example:
+        `$ python cli.py get --extract`
+        `$ python cli.py get -path /tmp -name mytar.gz --extract`
+        `$ python cli.py get -url http://myfile/data/data.json -path /tmp`
+
+    :param extract: if passed, downloaded .gz will be decompressed.
+    :param kwargs: keyword arguments from CLI
+    """
+    filename = kwargs.get('name')
+    path = kwargs.get('path')
+    url = kwargs.get('url')
+    path = '{}/{}'.format(path, filename)
+    logger.info('Started download from MPC')
+    req, _ = urllib.request.urlretrieve(url, path)
+    logging.info('Downloaded [{}]'.format(req))
+    if extract:
+        _name = filename.replace('.gz', '')
+        target = open(_name, 'wb')
+        logging.info('Decompressing file...')
+        with gzip.open(req) as gz:
+            target.write(gz.read())
+            target.close()
+            logging.info('Extracted file [{}]'.format(_name))
+
+
+@argh.arg('-db', default=DEFAULT_DBNAME)
+@argh.arg('-col', default=DEFAULT_COLLECTION)
+@argh.arg('-path')
+def update(**kwargs):
+    """
+    Function for updating database from JSON file.
+    Drops existing collection records and replace it with new records.
+    Used values from `config` by default.
+    CLI args:
+        -db: name of the database for data population
+        -col name of the collection for data population
+        -path: path to the data file
+    Example:
+        `$ python cli.py update -path mpcorb_extended.json`
+        `$ python cli.py update -path mpcorb.json -col mpc_backup -db mpc2`
+
+    :param kwargs: keyword arguments from CLI.
+    """
+    db_name = kwargs.get('db')
+    col = kwargs.get('col')
+    json_file = kwargs.get('path')
+    logging.warning('Old collection will be dropped before update (if exists)')
+    collection = engine.db(db_name, col)
+    collection.drop()
+    logging.info('Inserting MPCORB data records into database, wait...')
+    with open(json_file) as f:
+        data = json_util.loads(f.read())
+    for record in data:
+        collection.insert_one(record)
+    logging.info('Inserted {} records into [{}.{}]'.format(collection.count(),
+                                                           db_name, col))
+
+
+if __name__ == '__main__':
+    parser = argh.ArghParser()
+    parser.add_commands([find, get, update])
+    parser.dispatch()
