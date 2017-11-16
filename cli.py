@@ -50,7 +50,7 @@ def find(pretty=False, **kwargs):
     query = parse_query(kwargs['p'])
     query = convert(query)
     result = engine.find(query, db_name, col)
-
+    print(len(result))
     if pretty:
         return pprint.pformat(result)
     else:
