@@ -1,40 +1,17 @@
 """Set of helper utils, for example converters, validators, parsers etc."""
 
-# map with the required type for each field in query
-type_map = {
-    "Orbit_type": str,
-    "a": float,
-    "Semilatus_rectum": float,
-    "Name": str,
-    "Hex_flags": str,
-    "Last_obs": str,
-    "Synodic_period": float,
-    "Epoch": float,
-    "Tp": float,
-    "e": float,
-    "Computer": str,
-    "M": float,
-    "Aphelion_dist": float,
-    "G": float,
-    "Peri": float,
-    "Arc_years": str,
-    "U": str,
-    "Number": str,
-    "H": float,
-    "Other_desigs": list,
-    "rms": float,
-    "Perturbers": str,
-    "Perihelion_dist": float,
-    "Num_opps": int,
-    "Ref": str,
-    "Principal_desig": str,
-    "Orbital_period": float,
-    "Num_obs": int,
-    "Perturbers_2": str,
-    "n": float,
-    "Node": float,
-    "i": float
-}
+import logging
+
+from datamaps import key_map, type_map
+
+logger = logging.getLogger(__name__)
+
+
+class QueryParseError(Exception):
+    """
+    Can be raised in case of errors related to query parsing.
+    """
+    pass
 
 
 def convert(data):
@@ -48,9 +25,27 @@ def convert(data):
     converted = {}
     for k, v in data.items():
         if k in type_map:
-            mapped = {k: type_map[k](data[k])}
-            converted.update(mapped)
+            try:
+                mapped = {k: type_map[k](data[k])}
+                converted.update(mapped)
+            except ValueError:
+                logger.error(
+                    'Failed to recognize values: [{}] value '
+                    'must be `{}`, not `{}`'.format(
+                        k, type_map[k].__name__, type(k).__name__))
+                exit(1)
     return converted
+
+
+def validate_keys(key):
+    """
+    Function that validates key for existing in expected list.
+    Raises `QueryParseError` if key not in expected list.
+
+    :param key: key to check
+    """
+    if key not in key_map:
+        raise QueryParseError
 
 
 def parse_query(q_args, delimiter=':'):
@@ -64,6 +59,16 @@ def parse_query(q_args, delimiter=':'):
     """
     query = {}
     for _arg in q_args:
-        _arg = _arg.split(delimiter)
-        query[_arg[0]] = _arg[1]
+        try:
+            _arg = _arg.split(delimiter)
+            validate_keys(_arg[0])
+            query[_arg[0]] = _arg[1]
+        except IndexError:
+            logging.error(
+                'Parsing failed, must use key{}value format'.format(delimiter))
+            exit(1)
+        except QueryParseError:
+            logger.error('Failed: unknown parameter [{}]'.format(_arg[0]))
+            exit(1)
+
     return query

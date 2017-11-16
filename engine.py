@@ -31,7 +31,7 @@ class Engine:
         :param collection: name of the collection to use.
         :return: `pymongo.collection.Collection` object
         """
-        client = pymongo.MongoClient()
+        client = pymongo.MongoClient(connect=False)
         return client[name][collection]
 
 
