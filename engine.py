@@ -1,8 +1,12 @@
 """Uses as set of base functionality for MPC data"""
 
+import logging
+
 import pymongo
 
-from config import DEFAULT_DBNAME, DEFAULT_COLLECTION
+import config
+
+logger = logging.getLogger(__name__)
 
 
 class Engine:
@@ -10,8 +14,8 @@ class Engine:
     Base class for manipulating MPC data.
     Performs searching for objects and can instantiate DB object for usage.
     """
-    def find(self, query, db_name=DEFAULT_DBNAME,
-             collection=DEFAULT_COLLECTION):
+
+    def find(self, query, db_name, collection):
         """
         Method for searching in MongoDB by mongo-compatible query.
 
@@ -21,23 +25,22 @@ class Engine:
         :return: list of found records
         """
         result = self.db(db_name, collection).find(query)
-        return [rec for rec in result]
+        if not result.count():
+            logger.info('Objects not found. Try more precise query.')
 
-    def db(self, name, collection):
+        return {'data': [rec for rec in result],
+                'count': result.count()}
+
+    def db(self, db_name, collection):
+        conf = config.get()
         """
         Method that return database `collection` object for usage.
 
-        :param name: name of the database to use.
+        :param db_name: name of the database to use.
         :param collection: name of the collection to use.
         :return: `pymongo.collection.Collection` object
         """
-        client = pymongo.MongoClient(connect=False)
-        return client[name][collection]
-
-
-
-
-
-
-
-
+        client = pymongo.MongoClient(host=conf['mongo_host'],
+                                     port=conf['mongo_port'],
+                                     connect=False)
+        return client[db_name][collection]

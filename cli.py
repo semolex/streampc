@@ -9,10 +9,9 @@ import urllib.request
 import argh
 from bson import json_util
 
+import config
 from engine import Engine
 from utils import convert, parse_query
-from config import MPC_URL, MPC_FILENAME, \
-     DEFAULT_DBNAME, DEFAULT_COLLECTION
 
 logging.basicConfig(level=logging.INFO,
                     format='[%(levelname)s] %(name)s: %(message)s')
@@ -20,10 +19,12 @@ logger = logging.getLogger()
 
 engine = Engine()
 
+conf = config.get()
+
 
 @argh.arg('-p', nargs='+')
-@argh.arg('-db', default=DEFAULT_DBNAME)
-@argh.arg('-col', default=DEFAULT_COLLECTION)
+@argh.arg('-db', default=conf['db_name'])
+@argh.arg('-col', default=conf['col_name'])
 @argh.arg('--pretty')
 def find(pretty=False, **kwargs):
     """
@@ -50,16 +51,15 @@ def find(pretty=False, **kwargs):
     query = parse_query(kwargs['p'])
     query = convert(query)
     result = engine.find(query, db_name, col)
-    print(len(result))
     if pretty:
         return pprint.pformat(result)
     else:
         return result
 
 
-@argh.arg('-url', default=MPC_URL)
+@argh.arg('-url', default=conf['mpcorb_url'])
 @argh.arg('-path', default=os.curdir)
-@argh.arg('-name', default=MPC_FILENAME)
+@argh.arg('-name', default=conf['mpcorb_file'])
 @argh.arg('--extract')
 def get(extract=False, **kwargs):
     """
@@ -85,19 +85,23 @@ def get(extract=False, **kwargs):
     path = '{}/{}'.format(path, filename)
     logger.info('Started download from MPC')
     req, _ = urllib.request.urlretrieve(url, path)
-    logging.info('Downloaded [{}]'.format(req))
+    logging.info('Downloaded [{}], size: {}mb'.
+                 format(req, os.path.getsize(path) >> 20))
     if extract:
-        _name = filename.replace('.gz', '')
-        target = open(_name, 'wb')
+        path = path.replace('.gz', '')
+        if not path.endswith('.json'):
+            path = '{}.json'.format(path)
+        target = open(path, 'wb')
         logging.info('Decompressing file...')
         with gzip.open(req) as gz:
             target.write(gz.read())
             target.close()
-            logging.info('Extracted file [{}]'.format(_name))
+            logging.info('Extracted file [{}], size: {}mb'.
+                         format(path, os.path.getsize(path) >> 20))
 
 
-@argh.arg('-db', default=DEFAULT_DBNAME)
-@argh.arg('-col', default=DEFAULT_COLLECTION)
+@argh.arg('-db', default=conf['db_name'])
+@argh.arg('-col', default=conf['col_name'])
 @argh.arg('-path')
 def update(**kwargs):
     """
