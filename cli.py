@@ -7,19 +7,22 @@ import pprint
 import urllib.request
 
 import argh
+import pymongo
 from bson import json_util
 
 import config
-from engine import Engine
 from utils import convert, parse_query
 
 logging.basicConfig(level=logging.INFO,
                     format='[%(levelname)s] %(name)s: %(message)s')
 logger = logging.getLogger()
 
-engine = Engine()
 
 conf = config.get()
+
+client = pymongo.MongoClient(host=conf['mongo_host'],
+                             port=conf['mongo_port'],
+                             connect=False)
 
 
 @argh.arg('-p', nargs='+')
@@ -30,7 +33,6 @@ def find(pretty=False, **kwargs):
     """
     Function that searches for an objects inside DB.
     Using parsed query, prepared from command line params.
-    Calls to `Engine` class to search for required data.
     Query is parsed and values are converted into proper types.
     CLI args:
         -p: determines that values will be recognized as query params.
@@ -42,7 +44,7 @@ def find(pretty=False, **kwargs):
         `$ python cli.py find -p Aphelion_dist:3.1948214 Num_opps:38 --pretty`
         `$ python cli.py find -p Num_opps:38 -db backup_mpc -col mpc_data_2`
 
-    :param pretty: if True, result will be "pretty-formatted".
+    :param pretty: if True, result will be "pretty-formatted" and ordered.
     :param kwargs: keyword arguments from CLI.
     :return: search result
     """
@@ -50,7 +52,12 @@ def find(pretty=False, **kwargs):
     col = kwargs.get('col')
     query = parse_query(kwargs['p'])
     query = convert(query)
-    result = engine.find(query, db_name, col)
+    result = client[db_name][col].find(query)
+    if not result.count():
+        logger.info('Objects not found. Try more precise query.')
+
+    result = {'data': [rec for rec in result],
+              'count': result.count()}
     if pretty:
         return pprint.pformat(result)
     else:
@@ -122,7 +129,7 @@ def update(**kwargs):
     col = kwargs.get('col')
     json_file = kwargs.get('path')
     logging.warning('Old collection will be dropped before update (if exists)')
-    collection = engine.db(db_name, col)
+    collection = client[db_name][col]
     collection.drop()
     logging.info('Inserting MPCORB data records into database, wait...')
     with open(json_file) as f:
