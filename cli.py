@@ -25,7 +25,7 @@ client = pymongo.MongoClient(host=conf['mongo_host'],
                              connect=False)
 
 
-@argh.arg('-p', nargs='+')
+@argh.arg('-q', nargs='+')
 @argh.arg('-db', default=conf['db_name'])
 @argh.arg('-col', default=conf['col_name'])
 @argh.arg('--pretty')
@@ -41,8 +41,8 @@ def find(pretty=False, **kwargs):
         -col: collection name for search
 
     Example:
-        `$ python cli.py find -p Aphelion_dist:3.1948214 Num_opps:38 --pretty`
-        `$ python cli.py find -p Num_opps:38 -db backup_mpc -col mpc_data_2`
+        `$ python cli.py find -q Aphelion_dist:3.1948214 Num_opps:38 --pretty`
+        `$ python cli.py find -q Num_opps:38 -db backup_mpc -col mpc_data_2`
 
     :param pretty: if True, result will be "pretty-formatted" and ordered.
     :param kwargs: keyword arguments from CLI.
@@ -50,7 +50,7 @@ def find(pretty=False, **kwargs):
     """
     db_name = kwargs.get('db')
     col = kwargs.get('col')
-    query = parse_query(kwargs['p'])
+    query = parse_query(kwargs['q'])
     query = convert(query)
     result = client[db_name][col].find(query)
     if not result.count():
