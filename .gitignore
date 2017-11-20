@@ -101,9 +101,6 @@ ENV/
 .mypy_cache/
 
 # PyCharm and default MPCORB data names
-.idea/misc.xml
-.idea/modules.xml
-.idea/streampc.iml
-.idea/workspace.xml
+.idea/
 mpcorb_extended.json
 mpcorb_extended.json.gz
