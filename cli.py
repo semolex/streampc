@@ -5,6 +5,7 @@ import logging
 import os
 import pprint
 import urllib.request
+from json.decoder import JSONDecodeError
 
 import argh
 import pymongo
@@ -16,7 +17,6 @@ from utils import convert, parse_query
 logging.basicConfig(level=logging.INFO,
                     format='[%(levelname)s] %(name)s: %(message)s')
 logger = logging.getLogger()
-
 
 conf = config.get()
 
@@ -129,15 +129,22 @@ def update(**kwargs):
     col = kwargs.get('col')
     json_file = kwargs.get('path')
     logging.warning('Old collection will be dropped before update (if exists)')
-    collection = client[db_name][col]
-    collection.drop()
-    logging.info('Inserting MPCORB data records into database, wait...')
+
     with open(json_file) as f:
-        data = json_util.loads(f.read())
-    for record in data:
-        collection.insert_one(record)
-    logging.info('Inserted {} records into [{}.{}]'.format(collection.count(),
-                                                           db_name, col))
+        try:
+            logger.info('Reading JSON file...')
+            data = json_util.loads(f.read())
+            collection = client[db_name][col]
+            if not data:
+                raise JSONDecodeError('', '', 1)
+            collection.drop()
+            logger.info('Inserting MPCORB data records into database, wait...')
+            for record in data:
+                collection.insert_one(record)
+            logger.info('Inserted {} records into [{}.{}]'.format(collection.count(),
+                                                                  db_name, col))
+        except JSONDecodeError:
+            logger.error('Failed to read JSON file: data is empty or corrupted.')
 
 
 if __name__ == '__main__':
