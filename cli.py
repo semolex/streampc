@@ -16,7 +16,7 @@ from utils import convert, parse_query
 
 logging.basicConfig(level=logging.INFO,
                     format='[%(levelname)s] %(name)s: %(message)s')
-logger = logging.getLogger()
+logger = logging.getLogger('streampc')
 
 conf = config.get()
 
@@ -25,17 +25,17 @@ client = pymongo.MongoClient(host=conf['mongo_host'],
                              connect=False)
 
 
-@argh.arg('-q', nargs='+')
-@argh.arg('-db', default=conf['db_name'])
-@argh.arg('-col', default=conf['col_name'])
-@argh.arg('--pretty')
+@argh.arg('-q', nargs='+', help='Query arguments to search, example: [-q Aphelion_dist:3.1948214 Num_opps:38].')
+@argh.arg('-db', default=conf['db_name'], help='Name of the DB, where MPCORB data is stored.')
+@argh.arg('-col', default=conf['col_name'], help='Name of the collection in DB, where MPCORB is stored.')
+@argh.arg('--pretty', help='Result will be formatted if argument passed.')
 def find(pretty=False, **kwargs):
     """
     Function that searches for an objects inside DB.
     Using parsed query, prepared from command line params.
     Query is parsed and values are converted into proper types.
     CLI args:
-        -p: determines that values will be recognized as query params.
+        -q: determines that values will be recognized as query params.
             Uses following param convention: {key}:{value} for proper use.
         -db: DB name for search
         -col: collection name for search
@@ -50,6 +50,9 @@ def find(pretty=False, **kwargs):
     """
     db_name = kwargs.get('db')
     col = kwargs.get('col')
+    if not kwargs.get('q'):
+        logger.error('Query cannot be empty and should be passed via [-q] parameter.')
+        exit(1)
     query = parse_query(kwargs['q'])
     query = convert(query)
     result = client[db_name][col].find(query)
@@ -60,14 +63,14 @@ def find(pretty=False, **kwargs):
               'count': result.count()}
     if pretty:
         return pprint.pformat(result)
-    else:
-        return result
+
+    return result
 
 
-@argh.arg('-url', default=conf['mpcorb_url'])
-@argh.arg('-path', default=os.curdir)
-@argh.arg('-name', default=conf['mpcorb_file'])
-@argh.arg('--extract')
+@argh.arg('-url', default=conf['mpcorb_url'], help='URL for downloading MPCORB file')
+@argh.arg('-path', default=os.curdir, help='Path, where file will be downloaded.')
+@argh.arg('-name', default=conf['mpcorb_file'], help='Custom name for file that will be downloaded.')
+@argh.arg('--extract', help='Extract downloaded file if it is archive.')
 def get(extract=False, **kwargs):
     """
     Function for downloading MPC data files.
@@ -87,29 +90,31 @@ def get(extract=False, **kwargs):
     :param kwargs: keyword arguments from CLI
     """
     filename = kwargs.get('name')
+    if not filename.endswith(('.gz', '.zip')) and extract:
+        logger.warning('Cannot determine type of compression, extraction can fail.')
     path = kwargs.get('path')
     url = kwargs.get('url')
     path = '{}/{}'.format(path, filename)
-    logger.info('Started download from MPC')
+    logger.info('Downloading from {}'.format(url))
     req, _ = urllib.request.urlretrieve(url, path)
-    logging.info('Downloaded [{}], size: {}mb'.
-                 format(req, os.path.getsize(path) >> 20))
+    logger.info('Downloaded [{}], size: {}mb'.
+                format(req, os.path.getsize(path) >> 20))
     if extract:
         path = path.replace('.gz', '')
         if not path.endswith('.json'):
             path = '{}.json'.format(path)
         target = open(path, 'wb')
-        logging.info('Decompressing file...')
+        logger.info('Decompressing file...')
         with gzip.open(req) as gz:
             target.write(gz.read())
             target.close()
-            logging.info('Extracted file [{}], size: {}mb'.
-                         format(path, os.path.getsize(path) >> 20))
+            logger.info('Extracted file [{}], size: {}mb'.
+                        format(path, os.path.getsize(path) >> 20))
 
 
-@argh.arg('-db', default=conf['db_name'])
-@argh.arg('-col', default=conf['col_name'])
-@argh.arg('-path')
+@argh.arg('-db', default=conf['db_name'], help='Name of the DB for updating.')
+@argh.arg('-col', default=conf['col_name'], help='Name of the collection in DB gor updating.')
+@argh.arg('-path', help='Path to the file that will be used for DB update.')
 def update(**kwargs):
     """
     Function for updating database from JSON file.
@@ -128,12 +133,22 @@ def update(**kwargs):
     db_name = kwargs.get('db')
     col = kwargs.get('col')
     json_file = kwargs.get('path')
-    logging.warning('Old collection will be dropped before update (if exists)')
+
+    if not json_file:
+        logger.error('No JSON file is provided.')
+        exit(1)
+    if not os.path.exists(json_file):
+        logger.error('File [{}] not exists.'.format(json_file))
+        exit(1)
 
     with open(json_file) as f:
         try:
             logger.info('Reading JSON file...')
             data = json_util.loads(f.read())
+            if col in client[db_name].collection_names():
+                logger.warning('Existing collection [{}] will be dropped before update.'.format(col))
+            else:
+                logger.info('Creating new collection [{}]'.format(col))
             collection = client[db_name][col]
             if not data:
                 raise JSONDecodeError('', '', 1)
