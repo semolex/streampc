@@ -93,6 +93,9 @@ def get(extract=False, **kwargs):
     if not filename.endswith(('.gz', '.zip')) and extract:
         logger.warning('Cannot determine type of compression, extraction can fail.')
     path = kwargs.get('path')
+    if not os.path.exists(path):
+        logger.error("Failed to start download: no such directory: [{}]".format(path))
+        exit(1)
     url = kwargs.get('url')
     path = '{}/{}'.format(path, filename)
     logger.info('Downloading from {}'.format(url))
@@ -158,7 +161,7 @@ def update(**kwargs):
                 collection.insert_one(record)
             logger.info('Inserted {} records into [{}.{}]'.format(collection.count(),
                                                                   db_name, col))
-        except JSONDecodeError:
+        except (JSONDecodeError, UnicodeDecodeError):
             logger.error('Failed to read JSON file: data is empty or corrupted.')
 
 
