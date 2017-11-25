@@ -97,6 +97,9 @@ def get(extract=False, **kwargs):
         logger.error("Failed to start download: no such directory: [{}]".format(path))
         exit(1)
     url = kwargs.get('url')
+    if not os.access(path, os.W_OK):
+        logger.error('Insufficient permission to write into folder [{}]'.format(path))
+        exit(1)
     path = '{}/{}'.format(path, filename)
     logger.info('Downloading from {}'.format(url))
     req, _ = urllib.request.urlretrieve(url, path)
