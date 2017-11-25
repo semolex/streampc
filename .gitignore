@@ -104,3 +104,4 @@ ENV/
 .idea/
 mpcorb_extended.json
 mpcorb_extended.json.gz
+MPCORB.DAT
