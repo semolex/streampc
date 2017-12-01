@@ -12,7 +12,7 @@ import pymongo
 from bson import json_util
 
 import config
-from utils import convert, parse_query
+from utils import convert, parse_query, search_in_dat
 
 logging.basicConfig(level=logging.INFO,
                     format='[%(levelname)s] %(name)s: %(message)s')
@@ -28,8 +28,11 @@ client = pymongo.MongoClient(host=conf['mongo_host'],
 @argh.arg('-q', nargs='+', help='Query arguments to search, example: [-q Aphelion_dist:3.1948214 Num_opps:38].')
 @argh.arg('-db', default=conf['db_name'], help='Name of the DB, where MPCORB data is stored.')
 @argh.arg('-col', default=conf['col_name'], help='Name of the collection in DB, where MPCORB is stored.')
+@argh.arg('-dat', default=conf['dat_file'], help='Name of DAT file to perform search.')
 @argh.arg('--pretty', help='Result will be formatted if argument passed.')
-def find(pretty=False, **kwargs):
+@argh.arg('--file', help='Indicates that search must be performed in file')
+@argh.arg('--first', help='Indicates that search must be performed in file')
+def find(pretty=False, file=False, first=False, **kwargs):
     """
     Function that searches for an objects inside DB.
     Using parsed query, prepared from command line params.
@@ -39,28 +42,42 @@ def find(pretty=False, **kwargs):
             Uses following param convention: {key}:{value} for proper use.
         -db: DB name for search
         -col: collection name for search
+        -dat: path to the DAT file
+        --file: indicates that search must be performed in DAT file.
+        --first: Indicates that only first occurance should be returned.
+        --pretty: Indicates that result should be "pretty-formatted".
 
     Example:
         `$ python cli.py find -q Aphelion_dist:3.1948214 Num_opps:38 --pretty`
         `$ python cli.py find -q Num_opps:38 -db backup_mpc -col mpc_data_2`
+        `$ python cli.py find -q Principal_desig:'2015 RV82' --file --pretty`
+        `$ python cli.py find -q Name:Ceres --file --pretty --first`
 
-    :param pretty: if True, result will be "pretty-formatted" and ordered.
+    :param pretty: if True, result will be "pretty-formatted".
+    :param file: if True, that search will be performed in file instead of DB.
+    :param first: if True, only first occurrence from file will be returned.
     :param kwargs: keyword arguments from CLI.
     :return: search result
     """
     db_name = kwargs.get('db')
     col = kwargs.get('col')
+    dat = kwargs.get('dat')
     if not kwargs.get('q'):
         logger.error('Query cannot be empty and should be passed via [-q] parameter.')
         exit(1)
     query = parse_query(kwargs['q'])
     query = convert(query)
-    result = client[db_name][col].find(query)
-    if not result.count():
+    if file:
+        logger.info('Performing search in file [{}]'.format(dat))
+        result = search_in_dat(dat, query, first)
+    else:
+        result = client[db_name][col].find(query)
+        result = [rec for rec in result]
+    if not len(result):
         logger.info('Objects not found. Try more precise query.')
 
-    result = {'data': [rec for rec in result],
-              'count': result.count()}
+    result = {'data': result,
+              'count': len(result)}
     if pretty:
         return pprint.pformat(result)
 
@@ -80,6 +97,7 @@ def get(extract=False, **kwargs):
         -url: URI for file download
         -path: path to folder for download
         -name: name for the downloaded file
+        -extracts: indicates need to extract data from archive.
     Downloaded file will be saved under `{path}/{filename}`
     Example:
         `$ python cli.py get --extract`
@@ -119,7 +137,7 @@ def get(extract=False, **kwargs):
 
 
 @argh.arg('-db', default=conf['db_name'], help='Name of the DB for updating.')
-@argh.arg('-col', default=conf['col_name'], help='Name of the collection in DB gor updating.')
+@argh.arg('-col', default=conf['col_name'], help='Name of the collection in DB for updating.')
 @argh.arg('-path', help='Path to the file that will be used for DB update.')
 def update(**kwargs):
     """
@@ -151,6 +169,7 @@ def update(**kwargs):
         try:
             logger.info('Reading JSON file...')
             data = json_util.loads(f.read())
+            logger.info('DB: [{}] will be used.'.format(db_name))
             if col in client[db_name].collection_names():
                 logger.warning('Existing collection [{}] will be dropped before update.'.format(col))
             else:
