@@ -92,6 +92,8 @@ month_map = {
     'C': '12'
 }
 
+# TODO: all this numeric stuff should be converted to index map
+
 day_map = {
     'A': '10',
     'B': '11',
@@ -141,9 +143,9 @@ day_map = {
     't': '55',
     'u': '56',
     'v': '57',
-    'w': '59',
-    'x': '60',
-    'y': '61',
-    'z': '62'
+    'w': '58',
+    'x': '59',
+    'y': '60',
+    'z': '61'
 
 }
