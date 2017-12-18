@@ -20,19 +20,13 @@ Follow here:
     * Ability to search for object in database via passed query.
     
 2. Prerequisites
+
+In most cases, `python` is already installed on Linux machines.   
+Also, we assume that `streampc` repo is already cloned or downloaded.    
+You can download it [here](https://github.com/semolex/streampc/archive/master.zip)
     
-    In most cases, `python` is already installed on Linux machines.
     
-    Also, we assume that `streampc` repo is already cloned or downloaded.
-    
-    You can download it from 
-    https://github.com/semolex/streampc/archive/master.zip
-    
-    It is created on top of `python 3.5`, but while there is not test, you can try to use any viable version.  
-    
-    If there is a problems, please follow:   
-    https://wiki.python.org/moin/BeginnersGuide/Download    
-    https://help.github.com/articles/cloning-a-repository/
+It is created on top of `python 3.5`, but while there is not test, you can try to use any viable version.  If there is a problems, please follow [here](https://wiki.python.org/moin/BeginnersGuide/Download) and [here](https://help.github.com/articles/cloning-a-repository/)
     
 3. Installation
     
@@ -60,13 +54,4 @@ Follow here:
     # cd into streampc directory and run
     pip install -r requirements.txt
     ```
-    
-##### TODO: 
- * Documentation is on the road
- * Add validators
- * Test against different envs
- * Add envvar configuration tool
- * Misc 
-
-
 
