@@ -7,7 +7,7 @@ from datetime import datetime
 
 import julian
 
-from datamaps import key_map, type_map, year_map, month_map, day_map
+from datamaps import key_map, type_map, compressed_num_map
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +96,16 @@ def match_in_dat(query, target):
     return intersection == query
 
 
-def _filter_desig_line(line):
+def _char_to_int(value):
+    """
+    Converts compressed alphabetical character into unpacked integer.
+    :param value: alphabetical char to convert
+    :return: unpacked int
+    """
+    return compressed_num_map.index(value) + 10
+
+
+def _filter_designation_line(line):
     """
     Filters given line, splits by delimiter and removes empty values.
 
@@ -132,13 +141,13 @@ def _extract_epoch(value):
     :return: float with parsed epoch.
     """
     try:
-        year = year_map[value[0]] + value[1:3]
+        year = _char_to_int([value[0]]) + _char_to_int(value[1:3])
         month = value[3]
-        if month_map.get(value[3]):
-            month = month_map[value[3]]
+        if _char_to_int(month):
+            month = _char_to_int(month)
         day = value[4::]
-        if day_map.get(value[4::]):
-            day = day_map[value[4::]]
+        if _char_to_int(day):
+            day = _char_to_int(day)
         epoch = '{}/{}/{}'.format(year, month, day)
         epoch = julian.to_jd(datetime.strptime(epoch, '%Y/%m/%d'))
     except IndexError:
@@ -147,7 +156,7 @@ def _extract_epoch(value):
     return epoch
 
 
-def _extract_desig(line):
+def _extract_designation(line):
     """
     Extracts packed designation values via different criteria.
 
@@ -155,19 +164,19 @@ def _extract_desig(line):
     :return: unpacked designation.
     """
 
-    desig = None
+    designation = None
     if line.isdigit():
         return line
     elif line.startswith(('PL', 'T')) and len(line) == 7:
-        desig = '{}-{} {}'.format(line[0], line[1], line[2::])
+        designation = '{}-{} {}'.format(line[0], line[1], line[2::])
 
     elif len(line) == 7:
-            year = year_map[line[0]] + line[1:3]
+            year = _char_to_int(line[0]) + _char_to_int(line[1:3])
             half_month = line[3] + line[6:]
             cycle = line[4:6]
-            cycle_s = day_map.get(cycle[0])
+            cycle_s = _char_to_int(cycle[0])
 
-            cycle_e = day_map.get(cycle[1])
+            cycle_e = _char_to_int(cycle[1])
             if not cycle_s:
                 cycle_s = cycle[0]
             if not cycle_e:
@@ -176,15 +185,15 @@ def _extract_desig(line):
 
             if cycle == 0:
                 cycle = ''
-            desig = '{} {}{}'.format(year, half_month, cycle)
+            designation = '{} {}{}'.format(year, half_month, cycle)
 
     elif len(line) == 5:
-        num = day_map.get(line[0])
+        num = _char_to_int(line[0])
         if not num:
             num = line[0]
-        desig = num + line[1::]
+        designation = num + line[1::]
 
-    return desig
+    return designation
 
 
 def _extract_arc_data(line):
@@ -237,7 +246,7 @@ def _parse_dat_file(line):
                                                            line[131:132],
                                                            line[132:136]))
     parsed = {
-        'Principal_desig': _extract_desig(line[0:7].strip()),
+        'Principal_desig': _extract_designation(line[0:7].strip()),
         'H': line[8:13].strip(),
         'G': line[14:19].strip(),
         'Epoch': _extract_epoch(line[20:25].strip()),
@@ -262,7 +271,7 @@ def _parse_dat_file(line):
         'Number': _extract_by_pattern(NUM_PATTERN, line[166:194].strip()),
         'Last_obs': '{}-{}-{}'.format(line[194:198], line[198:200], line[200:202]),
         'Tp': line[203:216].strip(),
-        'Other_desigs': list(_filter_desig_line(line[217::]))
+        'Other_desigs': list(_filter_designation_line(line[217::]))
     }
     parsed = {k: v for k, v in parsed.items() if v}
     parsed = convert(parsed)
