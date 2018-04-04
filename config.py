@@ -4,6 +4,11 @@ config = configparser.ConfigParser()
 
 
 def get():
+    """
+    Reads configuration file items and return them a dict.
+
+    :return: dict with parsed config items.
+    """
     config.read('config.ini')
 
     conf = {'db_name': config['mongo']['DefaultDatabaseName'],

@@ -1,44 +1,3 @@
-key_map = [
-    "Perturbers_2",
-    "a",
-    "Tp",
-    "rms",
-    "n",
-    "Perturbers",
-    "Ref",
-    "Num_opps",
-    "Synodic_period",
-    "e",
-    "Aphelion_dist",
-    "Epoch",
-    "Computer",
-    "Other_desigs",
-    "Peri",
-    "Number",
-    "Last_obs",
-    "H",
-    "G",
-    "Perihelion_dist",
-    "i",
-    "M",
-    "Orbit_type",
-    "U",
-    "Semilatus_rectum",
-    "Num_obs",
-    "Principal_desig",
-    "Node",
-    "Arc_years",
-    "Orbital_period",
-    "Hex_flags",
-    "Name",
-    "NEO_flag",
-    "One_km_NEO_flag",
-    "PHA_flag",
-    "Critical_list_numbered_object_flag",
-    "One_opposition_object_flag",
-    "Arc_length"
-]
-
 type_map = {
     "Orbit_type": str,
     "a": float,
@@ -80,5 +39,6 @@ type_map = {
     "PHA_flag": int
 }
 
+key_map = list(type_map.keys())
 
 compressed_num_map = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
